@@ -1,0 +1,51 @@
+services:
+  kafka:
+    image: bitnami/kafka:4.0.0
+    networks:
+      - default
+    ports:
+      - "9092:9092"
+    environment:
+      # KRaft
+      - KAFKA_CFG_NODE_ID=0
+      - KAFKA_CFG_PROCESS_ROLES=controller,broker
+      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=0@kafka:9093
+      # Listenser
+      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092
+      - KAFKA_KRAFT_CLUSTER_ID=424b415e-d4e0-480c-ada1-5836e3d891f6
+      - ALLOW_PLAINTEXT_LISTENER=yes
+    volumes:
+      - kafka-data:/bitnami/kafka
+
+  connect:
+    image: debezium/connect:2.7.3.Final
+    networks:
+      - default
+    depends_on:
+      - kafka
+    ports:
+      - "8083:8083"
+    environment:
+      - BOOTSTRAP_SERVERS=kafka:9092
+      - GROUP_ID=connect-cluster
+      - CONFIG_STORAGE_TOPIC=my_connect_configs
+      - OFFSET_STORAGE_TOPIC=my_connect_offsets
+      - STATUS_STORAGE_TOPIC=my_connect_statuses
+      - KEY_CONVERTER=org.apache.kafka.connect.json.JsonConverter
+      - VALUE_CONVERTER=org.apache.kafka.connect.json.JsonConverter
+      - INTERNAL_KEY_CONVERTER=org.apache.kafka.connect.json.JsonConverter
+      - INTERNAL_VALUE_CONVERTER=org.apache.kafka.connect.json.JsonConverter
+      - REST_ADVERTISED_HOST_NAME=connect
+      - REST_PORT=8083
+    volumes:
+      - ./debezium-plugins:/kafka/connect
+
+networks:
+  default:
+    driver: bridge
+
+volumes:
+  kafka-data:
