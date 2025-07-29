@@ -10,8 +10,13 @@ JSON_PAYLOAD=$(cat <<EOF
     "connection.username": "$Elasticsearch_USER",
     "connection.password": "$Elasticsearch_PASSWORD",
     "key.ignore": "true",
-    "schema.ignore": "true",
-    "consumer.auto.offset.reset": "earliest"
+    "schema.ignore": "false",
+    "consumer.auto.offset.reset": "earliest",
+
+    "transforms": "unwrap",
+    "transforms.unwrap.type": "io.debezium.transforms.ExtractNewRecordState",
+    "transforms.unwrap.drop.tombstones": "true",
+    "transforms.unwrap.delete.handling.mode": "rewrite",
   }
 }
 EOF

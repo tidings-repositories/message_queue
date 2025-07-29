@@ -11,9 +11,12 @@ JSON_PAYLOAD=$(cat <<EOF
     "topic.prefix": "mongodb_cdc",
     "database.include.list": "$MongoDB_DATABASE",
     "collection.include.list": "$MongoDB_DATABASE.posts",
+    "key.converter.schemas.enable": false,
+    "value.converter.schemas.enable": false,
 
     "flush.synchronously": "true",
-    "transforms": "route",
+    "transforms": "JsonToStruct,route",
+    "transforms.JsonToStruct.type": "com.delivalue.tidings.JsonStringToStruct",
     "transforms.route.type": "org.apache.kafka.connect.transforms.RegexRouter",
     "transforms.route.regex": "mongodb_cdc\\..*",
     "transforms.route.replacement": "post-index"
