@@ -49,6 +49,9 @@ public class JsonStringToStruct<R extends ConnectRecord<R>> implements Transform
 
                 if("_id".equals(k)) {
                     node.set("id", v);
+                } else if (k.endsWith("At")) {
+                    Long timestamp = v.get("$date").asLong();
+                    node.set(k, mapper.valueToTree(timestamp));
                 } else {
                     node.set(k, v);
                 }
