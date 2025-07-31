@@ -64,6 +64,7 @@ sudo curl -SL https://github.com/docker/compose/releases/download/v2.39.1/docker
 sudo chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
 ```
 
+
 ## Docker Compose로 Kafka, Kafka connect 구성하기
 
 Docker hub에서 [kafka image](https://hub.docker.com/r/bitnami/kafka)와 Kafka Connect를 포함하는 [Debezium image](https://hub.docker.com/r/debezium/connect)를 활용해 구성했습니다.
@@ -120,7 +121,9 @@ networks:
 
 volumes:
   kafka-data:
+  
 ```
+
 
 이후 실행할 때 프로젝트 이름을 환경 변수로 지정하고, 데몬으로 실행해줬습니다.
 
@@ -132,9 +135,9 @@ COMPOSE_PROJECT_NAME=tidings_messagequeue
 
 ## Connector plugin 설치
 
-설치해야 하는 Plugin은 총 3종류로 [debezium-connector-mysql](https://central.sonatype.com/artifact/io.debezium/debezium-connector-mysql), [ debezium-connector-mongodb](https://central.sonatype.com/artifact/io.debezium/debezium-connector-mongodb), [Elasticsearch-sink-connector](https://www.confluent.io/hub/confluentinc/kafka-connect-elasticsearch)
+설치해야 하는 Plugin은 총 3종류로 [debezium-connector-mysql](https://central.sonatype.com/artifact/io.debezium/debezium-connector-mysql), [ debezium-connector-mongodb](https://central.sonatype.com/artifact/io.debezium/debezium-connector-mongodb),  [Elasticsearch-sink-connector](https://www.confluent.io/hub/confluentinc/kafka-connect-elasticsearch)
 
-Kafka connect를 compose에서 정의할 때 저장 주소로 Host OS의 `debezium-plugins/`를 지정했기 때문에 해당 주소로 이동하여 다운받아줬습니다.
+Kafka connect를 compose에서 정의할 때 저장 주소로 Host OS의  `debezium-plugins/`를 지정했기 때문에 해당 주소로 이동하여 다운받아줬습니다.
 
 ```bash
 cd debezium-plugins/
@@ -166,6 +169,7 @@ docker restart {connect 컨테이너 ID}
 
 docker exec -it {connect 컨테이너 ID} curl -s http://localhost:8083/connector-plugins | jq
 ```
+
 
 ## Connector를 이용한 CDC 파이프라인 구축
 
@@ -243,15 +247,17 @@ replication:
 mongod.conf에서 replication 설정을 해줬고, Replica Set을 초기화해줬습니다.
 
 ```js
-mongosh;
+mongosh
 
 rs.initiate({
   _id: "rs0",
-  members: [{ _id: 0, host: "{host Ip}:27017" }],
-});
+  members: [
+    { _id: 0, host: "{host Ip}:27017" }
+  ]
+})
 ```
 
-이 과정에서 헤맨 것이 있는데 aws에서만 그런진 모르겠지만, MongoDB가 자신의 public Id를 스스로라고 인식하지 못해 host ip 부분에 public ip를 넣었을 경우 에러가 발생하던 문제가 있었습니다.
+이 과정에서 헤맨 것이 있는데 aws에서만 그런진 모르겠지만, MongoDB가 자신의 public Id를 스스로라고 인식하지 못해 host ip 부분에 public ip를 넣었을 경우 에러가 발생하던  문제가 있었습니다.
 
 이 문제는 aws의 보안 그룹에서 MongoDB 인스턴스의 IP로 27017 포트에 연결할 수 있도록 인바운드 설정을 수행했을 때 해결되었습니다.
 
@@ -292,7 +298,7 @@ MongoDB가 정말 CDC 파이프라인을 구성하며 시행 착오가 많았던
 
 MongoDB가 내부적으로 BSON으로 자료를 저장하기 때문에 key, value converter가 JsonConverter를 사용하더라도 값을 Json String으로 직렬화 하여 보냈는데,
 
-처음에는 이 사실을 몰랐어서 단순히 Elasticsearch에 저장했다가 검색할 수 없는 문제가 발생했었습니다.
+처음에는 이 사실을 몰랐어서  단순히 Elasticsearch에 저장했다가 검색할 수 없는 문제가 발생했었습니다.
 
 2. Elasticsearch의 Document 정책 `_id` 금지
 
@@ -338,7 +344,7 @@ public class JsonStringToStruct<R extends ConnectRecord<R>> implements Transform
         if (!(afterValue instanceof String)) {
             return record;
         }
-
+        
         try {
             JsonNode jsonNode = mapper.readTree((String) afterValue);
             if (jsonNode == null || !jsonNode.isObject()) {
@@ -352,8 +358,11 @@ public class JsonStringToStruct<R extends ConnectRecord<R>> implements Transform
 
                 if("_id".equals(k)) {
                     node.set("id", v);
+                } else if (k.endsWith("At")) {
+	                Long timestamp = v.get("$date").asLong();
+	                node.set(k, mapper.valueToTree(timestamp));
                 } else {
-                    node.set(k, v);
+	                node.set(k, v);
                 }
             });
 
@@ -509,7 +518,7 @@ Custom SMT를 만들기 위해서 Confluent에서 제공하는 [docs](https://do
 ```bash
 ./gradlew clean build
 
-scp ./build/libs/kafka-0.0.1-SMT.jar {유저}@{Kafka 서버}:~
+scp ./build/libs/kafka-0.0.1-SMT.jar {유저}@{Kafka 서버}:~ 
 
 # Kafka 서버
 sudo mkdir /debezium-plugins/jsonstring-to-struct-smt
@@ -557,14 +566,21 @@ JSON_PAYLOAD=$(cat <<EOF
     "connection.url": "http://$Elasticsearch_URL",
     "connection.username": "$Elasticsearch_USER",
     "connection.password": "$Elasticsearch_PASSWORD",
-    "key.ignore": "true",
+    "key.ignore": "false",
     "schema.ignore": "false",
     "consumer.auto.offset.reset": "earliest",
 
-    "transforms": "unwrap",
+    "transforms": "unwrap,extractId,extractKeyField,dropId"
     "transforms.unwrap.type": "io.debezium.transforms.ExtractNewRecordState",
     "transforms.unwrap.drop.tombstones": "true",
     "transforms.unwrap.delete.handling.mode": "rewrite",
+    
+    "transforms.extractId.type": "org.apache.kafka.connect.transforms.ValueToKey",
+    "transforms.extractId.fields": "id",
+    "transforms.extractKeyField.type": "org.apache.kafka.connect.transforms.ExtractField\$Key",
+    "transforms.extractKeyField.field": "id",
+    "transforms.dropId.type": "org.apache.kafka.connect.transforms.ReplaceField\$Value",
+    "transforms.dropId.blacklist": "id",
   }
 }
 EOF
@@ -573,13 +589,14 @@ EOF
 curl -X POST http://localhost:8083/connectors -H "Content-Type: application/json" -d "$JSON_PAYLOAD"
 ```
 
-여기서 좀 막혔던 부분으로 기존 es-sink-connector에서 `topic.index.map`을 통해 토픽과 인덱스를 매핑할 수 있었는데, 이게 최신 버전에선 deprecated 되어서
+Elasticsearch가 내부적으로 id 필드를 가질 순 있으나 Spring Data Elasticsearch 레벨에서 id 필드가 2개인 경우 `_id` 필드만 가져올 수 있는 문제가 있어서 CDC 데이터의 id 값을 `_id`로 변환하여 사용할 수 있도록`org.apache.kafka.connect.transforms.ValueToKey` SMT, 그리고 기존 id 필드를 버리도록 `org.apache.kafka.connect.transforms.ExtractField$Key` SMT를 사용했습니다.
 
-flush.synchronously를 true로 변경하고, SMT 방식으로 인덱스 명을 매핑하라는 공식 문서를 참고할 수 있었습니다.
+이 때 `org.apache.kafka.connect.transforms.ExtractField$Key` SMT의 경우 JSON을 쉽게 사용하기 위해서 스크립트를 작성해 사용하고 있기 때문에 `$` 문자를 Escape할 수 있도록 처리했습니다.
+
 
 ### CDC 파이프라인이 잘 구성되어 있는지 확인
 
-첫번째로 커넥터 구성이 잘 되어있는지 확인하기 위해 커넥터가 Running 상태인지 전부 확인해줬습니다.
+첫번째로 커넥터 구성이 잘 되어있는지 확인하기 위해  커넥터가 Running 상태인지 전부 확인해줬습니다.
 
 ```bash
 curl -X GET http://localhost:8083/connectors/{커넥터 이름}/status
