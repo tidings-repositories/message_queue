@@ -1,6 +1,6 @@
 services:
   kafka:
-    image: bitnami/kafka:4.0.0
+    image: bitnamilegacy/kafka:4.0.0
     networks:
       - default
     ports:
