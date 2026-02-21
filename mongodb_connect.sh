@@ -18,7 +18,7 @@ JSON_PAYLOAD=$(cat <<EOF
     "transforms": "JsonToStruct,route",
     "transforms.JsonToStruct.type": "com.delivalue.tidings.JsonStringToStruct",
     "transforms.route.type": "org.apache.kafka.connect.transforms.RegexRouter",
-    "transforms.route.regex": "mongodb_cdc\\..*",
+    "transforms.route.regex": "mongodb_cdc\\\\..*",
     "transforms.route.replacement": "post-index"
   }
 }
