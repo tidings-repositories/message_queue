@@ -23,7 +23,7 @@ JSON_PAYLOAD=$(cat <<EOF
     "transforms.extractKeyField.type": "org.apache.kafka.connect.transforms.ExtractField\$Key",
     "transforms.extractKeyField.field": "id",
     "transforms.dropId.type": "org.apache.kafka.connect.transforms.ReplaceField\$Value",
-    "transforms.dropId.blacklist": "id",
+    "transforms.dropId.blacklist": "id"
   }
 }
 EOF
